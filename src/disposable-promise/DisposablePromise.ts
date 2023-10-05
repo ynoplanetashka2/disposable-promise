@@ -39,7 +39,9 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
         return;
       } else {
         throw new TypeError(
-          `unexpected value '${Object.prototype.toString.call(cleanup)}' returned from DisposablePromise init-function`,
+          `unexpected value '${Object.prototype.toString.call(
+            cleanup,
+          )}' returned from DisposablePromise init-function`,
         );
       }
     };

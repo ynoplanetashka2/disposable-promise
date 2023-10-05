@@ -14,3 +14,4 @@ While usually u can abort http request with _AbortController_ and _signal_ there
 
 And now, `ECMAScript Explicit Resource Management` poposal on stage 3, and typescript support it out of the box, so looks like now exist pretty conviniet and standardized way to represent cancellation.
 
+<!-- TODO: api section-->
