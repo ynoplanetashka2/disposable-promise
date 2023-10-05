@@ -1,0 +1,11 @@
+{
+  "name": "disposable-promise",
+  "version": "0.0.0",
+  "description": "js promises cancellation implementation with Symbol.dispose",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["dispose", "symbol-dispose", "promise", "async", "dispose-promise", "cancel", "cancel-promise"],
+  "author": "mrynoplanetashka@gmail.com",
+  "license": "MIT"
+}
