@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "es2016",
+    "rootDir": "./src",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "declaration": false,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "sourceMap": false
+  },
+  "includes": "./src/**/*.ts",
+  "exclude": ["**/unit-tests", "./dist"]
+}
