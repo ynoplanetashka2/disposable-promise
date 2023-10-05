@@ -10,7 +10,6 @@
     "build:types": "tsc -p ./tsconfig.types.json",
     "build": "npm-run-all -p build:*",
     "clear": "del-cli ./dist",
-    "prepublishOnly": "npm-run-all -s test clear build",
     "lint": "npx prettier src/ -w",
     "prepack": "npm-run-all -s lint test clear build"
   },
