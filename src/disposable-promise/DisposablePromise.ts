@@ -161,19 +161,17 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
 
   finally(onSettled: () => void) {
     const initFunction: DisposablePromiseInitFunction<T> = (res, rej) => {
-      const handleSettled = <R>(resolver: (arg: R) => void) => (arg: R) => {
+      const handleSettled =
+        <R>(resolver: (arg: R) => void) =>
+        (arg: R) => {
           try {
             onSettled();
             resolver(arg);
-          } catch (err:unknown) {
+          } catch (err: unknown) {
             rej(err);
           }
-        }
-      Promise.prototype.then.call(
-        this,
-        handleSettled(res),
-        handleSettled(rej),
-      );
+        };
+      Promise.prototype.then.call(this, handleSettled(res), handleSettled(rej));
       return this.#cleanup;
     };
     const disposablePromise = new DisposablePromise(initFunction);
