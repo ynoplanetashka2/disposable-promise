@@ -1,3 +1,5 @@
+import { isPromise } from './utils/isPromise';
+
 export type DisposeFunction = () => void;
 export type PromiseInitFunction<T> = (
   resolve: (arg: T | PromiseLike<T>) => void,
@@ -10,14 +12,17 @@ export type DisposablePromiseInitFunction<T> = (
 
 export class DisposablePromise<T = unknown> extends Promise<T> {
   #cleanup: DisposeFunction = () => void 0;
+  #reject: (err: unknown) => void;
   #isPromiseSettled: boolean = false;
   #cleanupWasPerformed: boolean = false;
 
   constructor(initFunction: DisposablePromiseInitFunction<T>) {
-    let maybeCleanup: DisposeFunction | null = null;
+    let maybeCleanup: DisposeFunction | undefined;
     let isThisCreated = false;
     let isSynchronouslySettled = false;
+    let rejectHolder: (arg: unknown) => void;
     const initWrapper: PromiseInitFunction<T> = (resolve, reject) => {
+      rejectHolder = reject;
       const handlePromiseSettling =
         <T>(resolver: (arg: T) => void) =>
         (arg: T) => {
@@ -50,6 +55,7 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
     if (isSynchronouslySettled) {
       this.#onSettled();
     }
+    this.#reject = rejectHolder!;
     this.#cleanup = maybeCleanup ?? this.#cleanup;
   }
 
@@ -61,8 +67,8 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
     if (this.#cleanupWasPerformed || this.#isPromiseSettled) {
       return;
     }
-    this.#cleanup();
     this.#cleanupWasPerformed = true;
+    this.#cleanup();
   }
 
   then<U = void, V = void>(
@@ -70,16 +76,33 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
     onReject?: (err: unknown) => V | PromiseLike<V>,
   ): DisposablePromise<U | V> {
     const initFunction: DisposablePromiseInitFunction<U | V> = (res, rej) => {
+      let cleanup: (() => void) | undefined;
+      const setCleanupIfPrecent = (result: unknown) => {
+        if (
+          isPromise(result) &&
+          Symbol.dispose in result &&
+          typeof result[Symbol.dispose] === 'function'
+        ) {
+          cleanup = result[Symbol.dispose] as any;
+        }
+      };
+
       Promise.prototype.then.call(
         this,
         (arg: T) => {
-          const result = onFullfill(arg);
-          res(result);
+          try {
+            const result = onFullfill(arg);
+            setCleanupIfPrecent(result);
+            res(result);
+          } catch (err: unknown) {
+            rej(err);
+          }
         },
         onReject
           ? (arg: unknown) => {
               try {
                 const result = onReject(arg);
+                setCleanupIfPrecent(result);
                 res(result);
               } catch (err: unknown) {
                 rej(err);
@@ -87,7 +110,14 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
             }
           : rej,
       );
-      return this.#cleanup;
+
+      return () => {
+        if (cleanup) {
+          cleanup();
+        } else {
+          this.#cleanup();
+        }
+      };
     };
     const disposablePromise = new DisposablePromise(initFunction);
     return disposablePromise;
@@ -97,15 +127,33 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
     onReject: (err: unknown) => R | PromiseLike<R>,
   ): DisposablePromise<R | T> {
     const initFunction: DisposablePromiseInitFunction<R | T> = (res, rej) => {
-      Promise.prototype.then.call(this, res, (arg: unknown) => {
+      let cleanup: (() => void) | undefined;
+      const setCleanupIfPrecent = (result: unknown) => {
+        if (
+          isPromise(result) &&
+          Symbol.dispose in result &&
+          typeof result[Symbol.dispose] === 'function'
+        ) {
+          cleanup = result[Symbol.dispose] as any;
+        }
+      };
+
+      Promise.prototype.then.call(this, res, (error: unknown) => {
         try {
-          const result = onReject(arg);
+          const result = onReject(error);
+          setCleanupIfPrecent(result);
           res(result);
         } catch (err: unknown) {
           rej(err);
         }
       });
-      return this.#cleanup;
+      return () => {
+        if (cleanup) {
+          cleanup();
+        } else {
+          this.#cleanup();
+        }
+      };
     };
     const disposablePromise = new DisposablePromise(initFunction);
     return disposablePromise;
@@ -113,16 +161,18 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
 
   finally(onSettled: () => void) {
     const initFunction: DisposablePromiseInitFunction<T> = (res, rej) => {
+      const handleSettled = <R>(resolver: (arg: R) => void) => (arg: R) => {
+          try {
+            onSettled();
+            resolver(arg);
+          } catch (err:unknown) {
+            rej(err);
+          }
+        }
       Promise.prototype.then.call(
         this,
-        (arg: T) => {
-          onSettled();
-          return res(arg);
-        },
-        (err: unknown) => {
-          onSettled();
-          return rej(err);
-        },
+        handleSettled(res),
+        handleSettled(rej),
       );
       return this.#cleanup;
     };
