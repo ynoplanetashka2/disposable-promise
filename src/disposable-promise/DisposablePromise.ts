@@ -178,6 +178,13 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
     return disposablePromise;
   }
 
+  stab(): DisposablePromise<T> {
+    const initFunction: DisposablePromiseInitFunction<T> = (res, rej) => {
+      Promise.prototype.then.call(this, res, rej);
+    };
+    return new DisposablePromise(initFunction);
+  }
+
   static resolve<R>(value?: R): DisposablePromise<Awaited<R>> {
     return new DisposablePromise((res) => res(value as any));
   }
