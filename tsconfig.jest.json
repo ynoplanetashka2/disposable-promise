@@ -6,7 +6,7 @@
         "declaration": false,
         "forceConsistentCasingInFileNames": true,
         "strict": true,
-        "sourceMap": false
+        "sourceMap": true
     },
     "files": [
         "src/**/*.spec.ts"
