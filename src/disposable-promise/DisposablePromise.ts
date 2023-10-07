@@ -68,7 +68,7 @@ export class DisposablePromise<T = unknown> {
       this.#reject(error);
     }
     // have to do so, otherwise error would propagate from this scope
-    Promise.prototype.catch.call(this, () => void 0);
+    this.#promise.catch(() => void 0);
   }
 
   then<U = void, V = void>(
