@@ -72,7 +72,7 @@ export class DisposablePromise<T = unknown> {
   }
 
   then<U = void, V = void>(
-    onFullfill: (arg: T) => U | PromiseLike<U>,
+    onFullfill: ((arg: T) => U | PromiseLike<U>) | undefined,
     onReject?: (err: unknown) => V | PromiseLike<V>,
   ): DisposablePromise<U | V> {
     const initFunction: DisposablePromiseInitFunction<U | V> = (res, rej) => {
@@ -88,15 +88,17 @@ export class DisposablePromise<T = unknown> {
       };
 
       this.#promise.then(
-        (arg: T) => {
-          try {
-            const result = onFullfill(arg);
-            setCleanupIfPrecent(result);
-            res(result);
-          } catch (err: unknown) {
-            rej(err);
-          }
-        },
+        onFullfill
+          ? (arg: T) => {
+              try {
+                const result = onFullfill(arg);
+                setCleanupIfPrecent(result);
+                res(result);
+              } catch (err: unknown) {
+                rej(err);
+              }
+            }
+          : (res as any),
         onReject
           ? (arg: unknown) => {
               try {
@@ -125,37 +127,7 @@ export class DisposablePromise<T = unknown> {
   catch<R>(
     onReject: (err: unknown) => R | PromiseLike<R>,
   ): DisposablePromise<R | T> {
-    const initFunction: DisposablePromiseInitFunction<R | T> = (res, rej) => {
-      let cleanup: (() => void) | undefined;
-      const setCleanupIfPrecent = (result: unknown) => {
-        if (
-          isPromise(result) &&
-          Symbol.dispose in result &&
-          typeof result[Symbol.dispose] === 'function'
-        ) {
-          cleanup = result[Symbol.dispose] as any;
-        }
-      };
-
-      this.#promise.then(res, (error: unknown) => {
-        try {
-          const result = onReject(error);
-          setCleanupIfPrecent(result);
-          res(result);
-        } catch (err: unknown) {
-          rej(err);
-        }
-      });
-      return () => {
-        if (cleanup) {
-          cleanup();
-        } else {
-          this.#cleanup();
-        }
-      };
-    };
-    const disposablePromise = new DisposablePromise(initFunction);
-    return disposablePromise;
+    return this.then(undefined, onReject);
   }
 
   finally(onSettled: () => void) {
