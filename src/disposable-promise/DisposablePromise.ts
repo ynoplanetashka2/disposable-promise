@@ -11,9 +11,11 @@ export type DisposablePromiseInitFunction<T> = (
   reject: (err: unknown) => void,
 ) => DisposeFunction | void;
 
-export class DisposablePromise<T = unknown> extends Promise<T> {
+export class DisposablePromise<T = unknown> {
   #cleanup: DisposeFunction = () => void 0;
-  #reject: (err: unknown) => void;
+  #promise: Promise<T>;
+  // have to initialize because of ts strict property initialization rule
+  #reject: (err: unknown) => void = undefined as any;
   #isPromiseSettled: boolean = false;
   #cleanupWasPerformed: boolean = false;
 
@@ -22,20 +24,12 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
   }
 
   constructor(initFunction: DisposablePromiseInitFunction<T>) {
-    let maybeCleanup: DisposeFunction | undefined;
-    let isThisCreated = false;
-    let isSynchronouslySettled = false;
-    let rejectHolder: (arg: unknown) => void;
     const initWrapper: PromiseInitFunction<T> = (resolve, reject) => {
-      rejectHolder = reject;
+      this.#reject = reject;
       const handlePromiseSettling =
         <T>(resolver: (arg: T) => void) =>
         (arg: T) => {
-          if (isThisCreated) {
-            this.#onSettled();
-          } else {
-            isSynchronouslySettled = true;
-          }
+          this.#onSettled();
           return resolver(arg);
         };
 
@@ -44,7 +38,7 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
         handlePromiseSettling(reject),
       );
       if (typeof cleanup === 'function') {
-        maybeCleanup = cleanup;
+        this.#cleanup = cleanup;
       } else if (cleanup === undefined) {
         return;
       } else {
@@ -55,13 +49,7 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
         );
       }
     };
-    super(initWrapper);
-    isThisCreated = true;
-    if (isSynchronouslySettled) {
-      this.#onSettled();
-    }
-    this.#reject = rejectHolder!;
-    this.#cleanup = maybeCleanup ?? this.#cleanup;
+    this.#promise = new Promise(initWrapper);
   }
 
   #onSettled() {
@@ -99,8 +87,7 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
         }
       };
 
-      Promise.prototype.then.call(
-        this,
+      this.#promise.then(
         (arg: T) => {
           try {
             const result = onFullfill(arg);
@@ -150,7 +137,7 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
         }
       };
 
-      Promise.prototype.then.call(this, res, (error: unknown) => {
+      this.#promise.then(res, (error: unknown) => {
         try {
           const result = onReject(error);
           setCleanupIfPrecent(result);
@@ -183,7 +170,7 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
             rej(err);
           }
         };
-      Promise.prototype.then.call(this, handleSettled(res), handleSettled(rej));
+      this.#promise.then(handleSettled(res), handleSettled(rej));
       return this.#cleanup;
     };
     const disposablePromise = new DisposablePromise(initFunction);
