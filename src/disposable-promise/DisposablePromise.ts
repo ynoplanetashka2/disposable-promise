@@ -131,22 +131,16 @@ export class DisposablePromise<T = unknown> {
   }
 
   finally(onSettled: () => void) {
-    const initFunction: DisposablePromiseInitFunction<T> = (res, rej) => {
-      const handleSettled =
-        <R>(resolver: (arg: R) => void) =>
-        (arg: R) => {
-          try {
-            onSettled();
-            resolver(arg);
-          } catch (err: unknown) {
-            rej(err);
-          }
-        };
-      this.#promise.then(handleSettled(res), handleSettled(rej));
-      return this.#cleanup;
-    };
-    const disposablePromise = new DisposablePromise(initFunction);
-    return disposablePromise;
+    return this.then(
+      (arg: T) => {
+        onSettled();
+        return arg;
+      },
+      (err: unknown) => {
+        onSettled();
+        throw err;
+      },
+    );
   }
 
   stab(): DisposablePromise<T> {
