@@ -16,6 +16,10 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
   #isPromiseSettled: boolean = false;
   #cleanupWasPerformed: boolean = false;
 
+  get [Symbol.toStringTag]() {
+    return 'DisposablePromise';
+  }
+
   constructor(initFunction: DisposablePromiseInitFunction<T>) {
     let maybeCleanup: DisposeFunction | undefined;
     let isThisCreated = false;
