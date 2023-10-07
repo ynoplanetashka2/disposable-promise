@@ -1,3 +1,4 @@
+import { AbortError } from './errors/AbortError';
 import { isPromise } from './utils/isPromise';
 
 export type DisposeFunction = () => void;
@@ -72,7 +73,14 @@ export class DisposablePromise<T = unknown> extends Promise<T> {
       return;
     }
     this.#cleanupWasPerformed = true;
-    this.#cleanup();
+    try {
+      this.#cleanup();
+      this.#reject(new AbortError('aborted with Symbol.dispose'));
+    } catch (error: unknown) {
+      this.#reject(error);
+    }
+    // have to do so, otherwise error would propagate from this scope
+    Promise.prototype.catch.call(this, () => void 0);
   }
 
   then<U = void, V = void>(
