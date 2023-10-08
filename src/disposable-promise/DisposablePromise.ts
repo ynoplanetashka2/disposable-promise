@@ -14,8 +14,6 @@ export type DisposablePromiseInitFunction<T> = (
 export class DisposablePromise<T = unknown> {
   #cleanup: DisposeFunction = () => void 0;
   #promise: Promise<T>;
-  // have to initialize because of ts strict property initialization rule
-  #reject: (err: unknown) => void = undefined as any;
   #isPromiseSettled: boolean = false;
   #cleanupWasPerformed: boolean = false;
 
@@ -25,7 +23,6 @@ export class DisposablePromise<T = unknown> {
 
   constructor(initFunction: DisposablePromiseInitFunction<T>) {
     const initWrapper: PromiseInitFunction<T> = (resolve, reject) => {
-      this.#reject = reject;
       const handlePromiseSettling =
         <T>(resolver: (arg: T) => void) =>
         (arg: T) => {
