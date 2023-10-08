@@ -26,8 +26,10 @@ export class DisposablePromise<T = unknown> {
       const handlePromiseSettling =
         <T>(resolver: (arg: T) => void) =>
         (arg: T) => {
-          this.#onSettled();
-          return resolver(arg);
+          Promise.resolve(arg).then((result: T) => {
+            this.#onSettled();
+            resolver(result);
+          });
         };
 
       const cleanup = initFunction(
