@@ -143,7 +143,7 @@ export class DisposablePromise<T = unknown> {
     );
   }
 
-  stab(): DisposablePromise<T> {
+  stub(): DisposablePromise<T> {
     const initFunction: DisposablePromiseInitFunction<T> = (res, rej) => {
       Promise.prototype.then.call(this, res, rej);
     };
