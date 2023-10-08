@@ -61,14 +61,7 @@ export class DisposablePromise<T = unknown> {
       return;
     }
     this.#cleanupWasPerformed = true;
-    try {
-      this.#cleanup();
-      this.#reject(new AbortError('aborted with Symbol.dispose'));
-    } catch (error: unknown) {
-      this.#reject(error);
-    }
-    // have to do so, otherwise error would propagate from this scope
-    this.#promise.catch(() => void 0);
+    this.#cleanup();
   }
 
   then<U = void, V = void>(
