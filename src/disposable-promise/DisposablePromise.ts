@@ -14,6 +14,7 @@ export type DisposablePromiseInitFunction<T> = (
 export class DisposablePromise<T = unknown> {
   #cleanup: DisposeFunction = () => void 0;
   #promise: Promise<T>;
+  #isAborted: boolean = false;
   #isPromiseSettled: boolean = false;
   #cleanupWasPerformed: boolean = false;
 
@@ -67,53 +68,62 @@ export class DisposablePromise<T = unknown> {
     onFullfill: ((arg: T) => U | PromiseLike<U>) | undefined,
     onReject?: (err: unknown) => V | PromiseLike<V>,
   ): DisposablePromise<U | V> {
-    const initFunction: DisposablePromiseInitFunction<U | V> = (res, rej) => {
-      let cleanup: (() => void) | undefined;
-      const setCleanupIfPrecent = (result: unknown) => {
-        if (
-          isPromise(result) &&
-          Symbol.dispose in result &&
-          typeof result[Symbol.dispose] === 'function'
-        ) {
-          cleanup = () => (result[Symbol.dispose] as any)();
-        }
-      };
+    const chainedDisposablePromise = new DisposablePromise<U | V>(
+      (res, rej) => {
+        let cleanup: (() => void) | undefined;
+        const setCleanupIfPrecent = (result: unknown) => {
+          if (
+            isPromise(result) &&
+            Symbol.dispose in result &&
+            typeof result[Symbol.dispose] === 'function'
+          ) {
+            cleanup = () => (result[Symbol.dispose] as any)();
+          }
+        };
 
-      this.#promise.then(
-        onFullfill
-          ? (arg: T) => {
-              try {
-                const result = onFullfill(arg);
-                setCleanupIfPrecent(result);
-                res(result);
-              } catch (err: unknown) {
-                rej(err);
+        this.#promise.then(
+          onFullfill
+            ? (arg: T) => {
+                try {
+                  if (chainedDisposablePromise.#isAborted) {
+                    rej(new AbortError());
+                    return;
+                  }
+                  const result = onFullfill(arg);
+                  setCleanupIfPrecent(result);
+                  res(result);
+                } catch (err: unknown) {
+                  rej(err);
+                }
               }
-            }
-          : (res as any),
-        onReject
-          ? (arg: unknown) => {
-              try {
-                const result = onReject(arg);
-                setCleanupIfPrecent(result);
-                res(result);
-              } catch (err: unknown) {
-                rej(err);
+            : (res as any),
+          onReject
+            ? (arg: unknown) => {
+                try {
+                  const result = onReject(arg);
+                  setCleanupIfPrecent(result);
+                  res(result);
+                } catch (err: unknown) {
+                  rej(err);
+                }
               }
-            }
-          : rej,
-      );
+            : rej,
+        );
 
-      return () => {
-        if (cleanup) {
-          cleanup();
-        } else {
-          this.#cleanup();
-        }
-      };
-    };
-    const disposablePromise = new DisposablePromise(initFunction);
-    return disposablePromise;
+        return () => {
+          if (chainedDisposablePromise.#isPromiseSettled) {
+            return;
+          }
+          chainedDisposablePromise.#isAborted = true;
+          if (cleanup) {
+            cleanup();
+          }
+          this[Symbol.dispose]();
+        };
+      },
+    );
+
+    return chainedDisposablePromise;
   }
 
   catch<R>(
