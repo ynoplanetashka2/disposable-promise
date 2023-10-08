@@ -75,7 +75,7 @@ export class DisposablePromise<T = unknown> {
           Symbol.dispose in result &&
           typeof result[Symbol.dispose] === 'function'
         ) {
-          cleanup = result[Symbol.dispose] as any;
+          cleanup = () => (result[Symbol.dispose] as any)();
         }
       };
 
