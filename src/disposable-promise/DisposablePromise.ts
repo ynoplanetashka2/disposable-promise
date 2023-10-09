@@ -11,6 +11,18 @@ export type DisposablePromiseInitFunction<T> = (
   reject: (err: unknown) => void,
 ) => DisposeFunction | void;
 
+const getCleanupIfPrecent = (
+  maybeDisposablePromise: unknown,
+): (() => void) | undefined => {
+  if (
+    isPromise(maybeDisposablePromise) &&
+    Symbol.dispose in maybeDisposablePromise &&
+    typeof maybeDisposablePromise[Symbol.dispose] === 'function'
+  ) {
+    return () => (maybeDisposablePromise[Symbol.dispose] as any)();
+  }
+};
+
 export class DisposablePromise<T = unknown> {
   #cleanup: DisposeFunction = () => void 0;
   #promise: Promise<T>;
@@ -76,15 +88,6 @@ export class DisposablePromise<T = unknown> {
     const chainedDisposablePromise = new DisposablePromise<U | V>(
       (res, rej) => {
         let cleanup: (() => void) | undefined;
-        const setCleanupIfPrecent = (result: unknown) => {
-          if (
-            isPromise(result) &&
-            Symbol.dispose in result &&
-            typeof result[Symbol.dispose] === 'function'
-          ) {
-            cleanup = () => (result[Symbol.dispose] as any)();
-          }
-        };
 
         this.#promise.then(
           onFullfill
@@ -93,7 +96,7 @@ export class DisposablePromise<T = unknown> {
                   if (onReject) {
                     try {
                       const result = onReject(new AbortError());
-                      setCleanupIfPrecent(result);
+                      const cleanup = getCleanupIfPrecent(result);
                       res(result);
                     } catch (err: unknown) {
                       rej(err);
@@ -105,7 +108,7 @@ export class DisposablePromise<T = unknown> {
                 }
                 try {
                   const result = onFullfill(arg);
-                  setCleanupIfPrecent(result);
+                  cleanup = getCleanupIfPrecent(result);
                   res(result);
                 } catch (err: unknown) {
                   rej(err);
@@ -116,7 +119,7 @@ export class DisposablePromise<T = unknown> {
                   if (onReject) {
                     try {
                       const result = onReject(new AbortError());
-                      setCleanupIfPrecent(result);
+                      cleanup = getCleanupIfPrecent(result);
                       res(result);
                     } catch (err: unknown) {
                       rej(err);
@@ -132,7 +135,7 @@ export class DisposablePromise<T = unknown> {
             ? (arg: unknown) => {
                 try {
                   const result = onReject(arg);
-                  setCleanupIfPrecent(result);
+                  cleanup = getCleanupIfPrecent(result);
                   res(result);
                 } catch (err: unknown) {
                   rej(err);
