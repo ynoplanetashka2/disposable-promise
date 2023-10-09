@@ -155,7 +155,7 @@ describe('DisposablePromise', () => {
         });
         disposablePromise[Symbol.dispose]();
 
-        expect(fn.mock.calls.length).toBe(1);
+        expect(fn).toBeCalledTimes(1);
       });
 
       it('should invoke passed cleanup function only once, if called multiple times', () => {
@@ -168,7 +168,7 @@ describe('DisposablePromise', () => {
         disposablePromise[Symbol.dispose]();
         disposablePromise[Symbol.dispose]();
 
-        expect(fn.mock.calls.length).toBe(1);
+        expect(fn).toBeCalledTimes(1);
       });
 
       it('should not call cleanup function after promise completion(fullfilled)', async () => {
@@ -179,7 +179,7 @@ describe('DisposablePromise', () => {
         });
         return Promise.resolve(disposablePromise).then(() => {
           disposablePromise[Symbol.dispose]();
-          expect(fn.mock.calls.length).toBe(0);
+          expect(fn).toBeCalledTimes(0);
         });
       });
 
@@ -191,7 +191,7 @@ describe('DisposablePromise', () => {
         });
         return Promise.resolve(disposablePromise).catch(() => {
           disposablePromise[Symbol.dispose]();
-          expect(fn.mock.calls.length).toBe(0);
+          expect(fn).toBeCalledTimes(0);
         });
       });
 
