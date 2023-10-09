@@ -383,6 +383,25 @@ describe('DisposablePromise', () => {
         expect(cleaup).toBeCalledTimes(0);
       });
 
+      it('should not invoke cleanup of chained promise if chained promise is settled', async () => {
+        const cleanup = jest.fn();
+        const root = new DisposablePromise((res) => {
+          res(1);
+        });
+        const chained = root.then(() => {
+          return new DisposablePromise((res) => {
+            res(2);
+            return cleanup;
+          })
+        })
+
+        return chained.then(() => {
+          chained[Symbol.dispose]();
+        }).then(() => {
+          expect(cleanup).toBeCalledTimes(0);
+        })
+      });
+
       describe('stub', () => {});
     });
   });
