@@ -177,10 +177,17 @@ export class DisposablePromise<T = unknown> {
   }
 
   stub(): DisposablePromise<T> {
-    const initFunction: DisposablePromiseInitFunction<T> = (res, rej) => {
-      Promise.prototype.then.call(this, res, rej);
-    };
-    return new DisposablePromise(initFunction);
+    const stubDisposablePromise = new DisposablePromise<T>((res, rej) => {
+      this.#promise.then((arg: T) => {
+        if (stubDisposablePromise.#isAborted) {
+          rej(new AbortError());
+          return;
+        }
+        res(arg);
+      }, rej);
+    });
+
+    return stubDisposablePromise;
   }
 
   static resolve<R>(value?: R): DisposablePromise<Awaited<R>> {
