@@ -417,22 +417,39 @@ describe('DisposablePromise', () => {
 
           await expect(chained).rejects.toThrow(AbortError);
           expect(cleanup).toBeCalledTimes(0);
-        })
+        });
       });
     });
   });
 
   describe('utility methods', () => {
-    it('should create resolved disposable promise with DisposablePromise.resolve', async () => {
-      const resolved = DisposablePromise.resolve(1);
-      expect(resolved).resolves.toBe(1);
-      expect(resolved).toBeInstanceOf(DisposablePromise);
+    describe('resolve', () => {
+      it('should create resolved disposable promise', async () => {
+        const resolved = DisposablePromise.resolve(1);
+        expect(resolved).toBeInstanceOf(DisposablePromise);
+        await expect(resolved).resolves.toBe(1);
+      });
+
+      it("should preserve cleanup's", async () => {
+        const cleanup = jest.fn();
+        const resolved = DisposablePromise.resolve(
+          new DisposablePromise((res) => {
+            res(1);
+            return cleanup;
+          }),
+        );
+        resolved[Symbol.dispose]();
+        await resolved.catch(() => void 0);
+        expect(cleanup).toBeCalledTimes(1);
+      });
     });
 
-    it('should create rejected disposable promise with DisposablePromise.reject', async () => {
-      const rejected = DisposablePromise.reject(new Error());
-      expect(rejected).rejects.toThrow();
-      expect(rejected).toBeInstanceOf(DisposablePromise);
+    describe('reject', () => {
+      it('should create rejected disposable promise', async () => {
+        const rejected = DisposablePromise.reject(new Error());
+        expect(rejected).toBeInstanceOf(DisposablePromise);
+        await expect(rejected).rejects.toThrow();
+      });
     });
   });
 });
