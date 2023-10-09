@@ -404,7 +404,21 @@ describe('DisposablePromise', () => {
           });
       });
 
-      describe('stub', () => {});
+      describe('stub', () => {
+        it('should not propagate dispose to stubbed root from chained', async () => {
+          const cleanup = jest.fn();
+          const root = new DisposablePromise((res) => {
+            res(1);
+            return cleanup;
+          });
+          const chained = root.stub().then(() => void 0);
+
+          chained[Symbol.dispose]();
+
+          await expect(chained).rejects.toThrow(AbortError);
+          expect(cleanup).toBeCalledTimes(0);
+        })
+      });
     });
   });
 
