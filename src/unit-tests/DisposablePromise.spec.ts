@@ -237,7 +237,7 @@ describe('DisposablePromise', () => {
     });
 
     describe('with chaining', () => {
-      it("should raise AbortError on chanied promise's, if Symbol.dispose was called on chained promise while root promise was pending and root promise haven't rised an Error", async () => {
+      it("should raise AbortError on chanied promise's, if Symbol.dispose was called on chained promise while root promise was pending and root promise haven't rised an error", async () => {
         const disposablePromise = new DisposablePromise((res) => res(1));
         const chained = disposablePromise.then(() => void 0);
 
@@ -245,6 +245,25 @@ describe('DisposablePromise', () => {
 
         await expect(disposablePromise).resolves.toBe(1);
         await expect(chained).rejects.toThrow(AbortError);
+      });
+
+      it("should be possible to catch AbortError on chanied promise's catch, if Symbol.dispose was called on chained promise while root promise was pending and root promise haven't rised an error", async () => {
+        expect.assertions(5);
+
+        const onFullfill = jest.fn();
+        const onReject = jest.fn((arg: unknown) => {
+          expect(arg).toBeInstanceOf(AbortError);
+          return 2;
+        });
+        const disposablePromise = new DisposablePromise((res) => res(1));
+        const chained = disposablePromise.then(onFullfill, onReject);
+
+        chained[Symbol.dispose]();
+
+        await expect(disposablePromise).resolves.toBe(1);
+        await expect(chained).resolves.toBe(2);
+        expect(onFullfill).toBeCalledTimes(0);
+        expect(onReject).toBeCalledTimes(1);
       });
 
       it("should perform root promise cleanup when Symbol.dispose called on chained promise's", async () => {
