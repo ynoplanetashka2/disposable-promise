@@ -392,14 +392,16 @@ describe('DisposablePromise', () => {
           return new DisposablePromise((res) => {
             res(2);
             return cleanup;
-          })
-        })
+          });
+        });
 
-        return chained.then(() => {
-          chained[Symbol.dispose]();
-        }).then(() => {
-          expect(cleanup).toBeCalledTimes(0);
-        })
+        return chained
+          .then(() => {
+            chained[Symbol.dispose]();
+          })
+          .then(() => {
+            expect(cleanup).toBeCalledTimes(0);
+          });
       });
 
       describe('stub', () => {});
