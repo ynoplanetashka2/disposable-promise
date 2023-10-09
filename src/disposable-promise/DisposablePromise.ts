@@ -81,14 +81,25 @@ export class DisposablePromise<T = unknown> {
           }
         };
 
+        const isRejectPassed = onReject !== undefined;
         this.#promise.then(
           onFullfill
             ? (arg: T) => {
-                try {
-                  if (chainedDisposablePromise.#isAborted) {
+                if (chainedDisposablePromise.#isAborted) {
+                  if (isRejectPassed) {
+                    try {
+                      const result = onReject(new AbortError());
+                      setCleanupIfPrecent(result);
+                      res(result);
+                    } catch (err: unknown) {
+                      rej(err);
+                    }
+                  } else {
                     rej(new AbortError());
-                    return;
                   }
+                  return;
+                }
+                try {
                   const result = onFullfill(arg);
                   setCleanupIfPrecent(result);
                   res(result);
