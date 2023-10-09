@@ -106,7 +106,23 @@ export class DisposablePromise<T = unknown> {
                   rej(err);
                 }
               }
-            : (res as any),
+            : (arg: T) => {
+                if (chainedDisposablePromise.#isAborted) {
+                  if (onReject) {
+                    try {
+                      const result = onReject(new AbortError());
+                      setCleanupIfPrecent(result);
+                      res(result);
+                    } catch (err: unknown) {
+                      rej(err);
+                    }
+                  } else {
+                    rej(new AbortError());
+                  }
+                  return;
+                }
+                res(arg as any);
+              },
           onReject
             ? (arg: unknown) => {
                 try {
