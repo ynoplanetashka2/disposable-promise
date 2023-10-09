@@ -194,7 +194,11 @@ export class DisposablePromise<T = unknown> {
   }
 
   static resolve<R>(value?: R): DisposablePromise<Awaited<R>> {
-    return new DisposablePromise((res) => res(value as any));
+    return new DisposablePromise<Awaited<R>>((res) => {
+      res(value as any);
+      const maybeCleanup = getCleanupIfPrecent(value);
+      return maybeCleanup;
+    });
   }
 
   static reject(error?: unknown) {
