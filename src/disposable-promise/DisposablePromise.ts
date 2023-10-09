@@ -24,9 +24,14 @@ export class DisposablePromise<T = unknown> {
 
   constructor(initFunction: DisposablePromiseInitFunction<T>) {
     const initWrapper: PromiseInitFunction<T> = (resolve, reject) => {
+      let isResolverCalled = false;
       const handlePromiseSettling =
         <T>(resolver: (arg: T) => void) =>
         (arg: T) => {
+          if (isResolverCalled) {
+            return;
+          }
+          isResolverCalled = true;
           Promise.resolve(arg).then((result: T) => {
             this.#onSettled();
             resolver(result);
